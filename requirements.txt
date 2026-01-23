@@ -1,0 +1,7 @@
+inaSpeechSegmenter
+tensorflow
+tqdm
+# 必须锁定 numpy<2，否则会与 tensorflow 冲突
+numpy<2
+# 必须锁定 pyannote-core<6，否则会强制安装新版 numpy
+pyannote-core<6

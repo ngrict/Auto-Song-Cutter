@@ -1,0 +1,39 @@
+# --- Python 基础 ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.spec
+
+# --- 虚拟环境 (防止把几千个库文件传上去) ---
+venv/
+.venv/
+env/
+singing/
+
+# --- 媒体文件 (绝对不要上传视频原档！) ---
+*.mp4
+*.mkv
+*.avi
+*.mov
+*.flv
+*.mp3
+*.wav
+
+# --- 临时中间文件 ---
+temp_*.wav
+temp_*.mp3
+
+# --- 输出文件夹 (你切出来的结果不需要上传) ---
+Songs_Export/
+Songs_Output*/
+Songs_Final*/
+Songs_Ina_Cut/
+
+# --- IDE 配置文件 ---
+.vscode/
+.idea/
+*.swp
+
+# --- OS 生成的垃圾文件 ---
+.DS_Store
+Thumbs.db
