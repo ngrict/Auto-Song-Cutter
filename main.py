@@ -4,6 +4,13 @@ import subprocess
 from inaSpeechSegmenter import Segmenter
 from tqdm import tqdm
 
+def format_timestamp(seconds):
+    """将秒数转换为 HH:MM:SS.mmm 格式"""
+    if seconds < 0: seconds = 0
+    m, s = divmod(seconds, 60)
+    h, m = divmod(m, 60)
+    return f"{int(h):02d}:{int(m):02d}:{s:06.3f}"
+
 def main():
     # 1. 设置命令行参数
     parser = argparse.ArgumentParser(description="基于 AI (inaSpeechSegmenter) 的全自动歌回切片工具")
@@ -22,6 +29,9 @@ def main():
     if not os.path.exists(input_video):
         print(f"❌ 错误：找不到文件 {input_video}")
         return
+
+    # 获取绝对路径，方便记录
+    abs_video_path = os.path.abspath(input_video)
 
     print(f">>> 正在处理: {input_video}")
     print(f">>> 参数配置: 开头+{args.trim_start}s | 结尾+{args.extend_end}s | 最小{args.min_duration}s")
@@ -62,7 +72,7 @@ def main():
     if os.path.exists(temp_audio):
         os.remove(temp_audio)
 
-    # 5. 导出
+    # 5. 导出与记录
     if not merged_segments:
         print("❌ 未检测到歌曲。")
         return
@@ -70,20 +80,43 @@ def main():
     print(f"\n>>> 识别到 {len(merged_segments)} 首歌曲，准备导出...")
     if not os.path.exists(output_dir): os.makedirs(output_dir)
 
-    for i, (s, e) in enumerate(tqdm(merged_segments, unit="file")):
-        new_s = s + args.trim_start
-        new_e = e + args.extend_end
-        
-        if new_s >= new_e: continue
-        
-        out_name = os.path.join(output_dir, f"Song_{i+1:02d}.mp4")
-        subprocess.run([
-            'ffmpeg', '-y', '-ss', f"{new_s:.2f}", '-to', f"{new_e:.2f}",
-            '-i', input_video, '-c', 'copy', '-avoid_negative_ts', '1',
-            '-loglevel', 'error', out_name
-        ])
+    # === 新增：准备 Log 文件 ===
+    log_file_path = os.path.join(output_dir, "segments_log.txt")
+    
+    with open(log_file_path, "w", encoding="utf-8") as f_log:
+        # 写入头部信息
+        f_log.write(f"Source Video: {abs_video_path}\n")
+        f_log.write(f"Total Songs: {len(merged_segments)}\n")
+        f_log.write("-------------------------------------------------------------\n")
+        f_log.write(f"{'Filename':<15} | {'Start Time':<15} | {'End Time':<15}\n")
+        f_log.write("-------------------------------------------------------------\n")
+
+        for i, (s, e) in enumerate(tqdm(merged_segments, unit="file")):
+            # 计算最终时间 (应用偏移量)
+            new_s = s + args.trim_start
+            new_e = e + args.extend_end
+            
+            if new_s >= new_e: continue
+            
+            filename = f"Song_{i+1:02d}.mp4"
+            out_name = os.path.join(output_dir, filename)
+
+            # === 写入当前切片信息 ===
+            time_start_str = format_timestamp(new_s)
+            time_end_str = format_timestamp(new_e)
+            f_log.write(f"{filename:<15} | {time_start_str:<15} | {time_end_str:<15}\n")
+            # 实时刷新缓冲区，防止程序崩溃没保存
+            f_log.flush() 
+
+            # 执行切片
+            subprocess.run([
+                'ffmpeg', '-y', '-ss', f"{new_s:.2f}", '-to', f"{new_e:.2f}",
+                '-i', input_video, '-c', 'copy', '-avoid_negative_ts', '1',
+                '-loglevel', 'error', out_name
+            ])
 
     print(f"\n✅ 全部完成！输出目录: {output_dir}")
+    print(f"📄 切片时间表已保存至: {log_file_path}")
 
 if __name__ == "__main__":
     main()

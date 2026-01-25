@@ -9,6 +9,7 @@ venv/
 .venv/
 env/
 singing/
+.venv_tag
 
 # --- 媒体文件 (绝对不要上传视频原档！) ---
 *.mp4
@@ -18,6 +19,7 @@ singing/
 *.flv
 *.mp3
 *.wav
+*.bat
 
 # --- 临时中间文件 ---
 temp_*.wav
@@ -35,5 +37,32 @@ Songs_Ina_Cut/
 *.swp
 
 # --- OS 生成的垃圾文件 ---
+.DS_Store
+Thumbs.db
+# === 忽略 Python 缓存 ===
+__pycache__/
+*.py[cod]
+.venv/
+.venv_tag/
+venv/
+singing/
+
+# === 忽略输出的视频文件夹 ===
+Songs_Export/
+Songs_Final_V6/
+hires/
+Bilibili_Ready/
+Bilibili_Upload/
+HiRes_Upload/
+
+# === 忽略临时音频文件 ===
+temp_process.wav
+temp_sample.wav
+*.log
+
+# === 忽略生成的日志文件 ===
+segments_log.txt
+
+# === 忽略系统文件 ===
 .DS_Store
 Thumbs.db
