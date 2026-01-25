@@ -2,100 +2,85 @@
 
 ![Python](https://img.shields.io/badge/Python-3.10-blue.svg) ![FFmpeg](https://img.shields.io/badge/FFmpeg-Required-green.svg) ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-**Auto-Song-Cutter** 是一个基于深度学习的全自动直播歌回切片工具。
+**Auto-Song-Cutter** 是一个基于深度学习的全自动直播歌回切片与识曲工具。
 
-它利用 [inaSpeechSegmenter](https://github.com/ina-foss/inaSpeechSegmenter) 神经网络模型，自动精准识别视频中的**歌唱部分 (Music)** 与**杂谈部分 (Speech)**，并调用 FFmpeg 进行**无损流拷贝**剪辑。
-
-告别繁琐的手动拉轴和剪辑，一键提取直播中的所有歌曲！
+它利用 **inaSpeechSegmenter** 精准提取歌曲片段，使用 **FFmpeg** 进行无损剪辑，并集成了 **Shazam** 接口实现全自动听歌识曲与文件重命名。
 
 ## ✨ 核心特性
 
-- 🧠 **AI 智能识别**：使用 CNN 模型精准区分人声与背景音乐，抗干扰能力强。
-- ⚡ **无损极速剪辑**：底层调用 FFmpeg `-c copy`，不重编码，画质/音质 1:1 无损，速度极快。
-- 🔗 **智能填缝**：自动忽略歌曲中间的简短停顿（间奏/过门），防止歌曲被切碎。
-- ✂️ **精细化修剪**：支持自定义“跳过前奏说话”和“延长结尾伴奏”的时间。
-- 🛠️ **高度可配置**：所有参数均可通过命令行调整。
+- 🧠 **AI 智能分段**：精准区分 Singing (歌唱) 与 Speech (杂谈)，自动剔除 BGM 干扰。
+- 📝 **自动日志**：切片同时生成 `segments_log.txt`，记录包含原始时间戳的详细歌单。
+- 🔍 **贪心识曲 (New)**：集成 Shazam 贪心算法，自动在 0s/60s/120s 多点采样，大幅提高识曲准确率。
+- 🏷️ **自动重命名**：识别成功后自动将 `Song_01.mp4` 重命名为 `歌名 - 歌手.mp4`。
+- 🛠️ **B站专用修复**：提供一键修复脚本，解决 B 站网页端无法播放的问题，或暴力开启 Hi-Res 图标。
 
-## ⚙️ 环境依赖
+## ⚙️ 安装依赖
 
-由于依赖的深度学习库对环境要求严格，**强烈建议使用 Conda 创建 Python 3.10 虚拟环境**。
-
-### 1. 前置准备
-* **FFmpeg**: 请确保电脑已安装 FFmpeg 并配置到系统环境变量中。[下载地址](https://ffmpeg.org/download.html)
-* **Anaconda/Miniconda**: 用于管理 Python 环境。
-
-### 2. 安装步骤
+建议使用 Python 3.10 环境（以获得最佳 TensorFlow 兼容性）。
 
 ```bash
-# 1. 创建 Python 3.10 环境 (TensorFlow 兼容性最佳版本)
-conda create -n singing python=3.10
-conda activate singing
-
-# 2. 安装项目依赖
-# (会自动处理 numpy<2 和 tensorflow 的版本冲突)
+# 安装核心依赖 (会自动锁定 numpy<2 以兼容 inaSpeechSegmenter)
 pip install -r requirements.txt
+注意：本项目依赖 FFmpeg，请确保电脑已安装 FFmpeg 并配置了环境变量。
 
-```
+🚀 使用指南 (Workflows)
+本项目设计为拖拽式工作流，主要包含三个步骤：
 
-## 🚀 快速开始
+第一步：全自动切片 (Auto Cut)
+运行 main.py 或使用批处理脚本。
 
-将你的直播录像文件（如 `input.mp4`）放入项目目录，然后在命令行运行：
+Bash
 
-```bash
-python main.py input.mp4
+python main.py input.mp4 --trim_start 3.0 --min_duration 60
+输出：默认生成 Songs_Export 文件夹。
 
-```
+日志：文件夹内包含 segments_log.txt，记录了切片的原始起止时间。
 
-程序将自动执行以下步骤：
+第二步：听歌识曲与改名 (Auto Recognize)
+切片完成后，运行 recognize_greedy.py (或使用 一键识曲_贪心版.bat)。
 
-1. 提取音频
-2. AI 识别歌唱片段
-3. 导出切片到 `Songs_Export` 文件夹
+它会自动扫描输出文件夹，对未命名的 Song_xx.mp4 进行多点位识别：
 
-## 🎛️ 参数说明
+策略：尝试开头 0s -> 副歌 60s -> 尾奏 120s。
 
-你可以通过命令行参数微调切片逻辑，以适应不同的直播风格。
+结果：一旦命中，自动重命名文件。
 
-| 参数 | 默认值 | 说明 |
-| --- | --- | --- |
-| `video_path` | (必填) | 输入视频文件的路径 |
-| `--output` | `Songs_Export` | 输出文件夹名称 |
-| `--trim_start` | `3.0` | **开头跳过秒数**。用于去除前奏中的说话声。设为 0 则保留全部。 |
-| `--extend_end` | `5.0` | **结尾延长秒数**。用于防止切掉渐弱的尾奏或后半句。 |
-| `--gap_tolerance` | `15.0` | **合并容忍度**。如果两段音乐间隔小于此值(秒)，将视为同一首歌。 |
-| `--min_duration` | `60.0` | **最小歌曲时长**。小于此长度的片段会被视为误判（如BGM）并丢弃。 |
+第三步：B站上传处理 (Post-Processing)
+针对 Bilibili 上传优化，提供两个专用脚本：
 
-### 进阶用法示例
+hires_fix.bat (推荐)
 
-**场景：** 主播喜欢在前奏里说话（需要多跳过一点），且歌曲中间间奏很长（需要更强的合并能力）。
+功能：修复音频编码为 AAC-LC 320k，重写时间戳。
 
-```bash
-python main.py live_replay.mp4 --trim_start 5.0 --extend_end 8.0 --gap_tolerance 20.0
+用途：解决上传后 B 站网页端黑屏、无法播放的问题。
 
-```
+画质：无损 Copy。
 
-## ❓ 常见问题 (FAQ)
+force_hires.bat (发烧友)
 
-**Q1: 报错 `A module that was compiled using NumPy 1.x cannot be run in NumPy 2.x`?**
+功能：强制转码为 FLAC 音频并封装为 MKV。
 
-> A:这是因为 TensorFlow 尚不支持 Numpy 2.0。请确保你安装依赖时使用了本项目提供的 `requirements.txt`，它强制锁定了 `numpy<2`。
+用途：暴力激活 B 站的 "Hi-Res" 无损音质图标。
 
-**Q2: 第一次运行非常慢？**
+📂 推荐目录结构
+为了保证脚本正常运行，建议目录结构如下：
 
-> A: 首次运行时，`inaSpeechSegmenter` 会自动下载神经网络模型文件（约几十MB），请保持网络通畅。下载完成后，之后的运行都会非常快。
+Plaintext
 
-**Q3: 为什么切出来的视频开头/结尾不太精准？**
+Auto-Song-Cutter/
+├── .venv/                 # Python 虚拟环境
+├── main.py                # 切片主程序
+├── recognize_greedy.py    # 识曲主程序
+├── requirements.txt       # 依赖清单
+├── 一键切歌.bat           # 拖拽启动脚本
+├── 一键识曲_贪心版.bat    # 点击启动脚本
+└── README.md              # 说明文档
+❓ 常见问题
+Q: 识曲脚本报错 找不到文件夹？ A: 脚本默认查找 Songs_Export, hires, Bilibili_Ready 等文件夹。如果你修改了输出目录名，请在 recognize_greedy.py 的 POSSIBLE_FOLDERS 列表中添加你的文件夹名。
 
-> A: 本工具使用**无损剪辑** (`-c copy`)，这意味着剪辑点必须吸附到视频的**关键帧 (Keyframe)**。这是为了换取“秒级导出”和“无损画质”所必须的物理妥协。
+Q: 批处理脚本无法处理中文文件名？ A: 请确保你的 .bat 文件是以 ANSI (GB2312) 编码保存的，不要使用 UTF-8。
 
-## 🙏 致谢
+Q: 识别率突然下降？ A: 不同主播的混音风格不同。如果 BGM 太大导致误判，请在切片时尝试增大 --min_duration (如 90) 或减小 --gap_tolerance (如 5)。
 
-* 核心算法基于 [inaSpeechSegmenter](https://github.com/ina-foss/inaSpeechSegmenter)
-* 视频处理基于 [FFmpeg](https://ffmpeg.org/)
-
-## 📄 License
-
+📄 License
 MIT License
-
-```
-
