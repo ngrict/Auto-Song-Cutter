@@ -1,7 +1,15 @@
+# === 核心切片引擎 ===
 inaSpeechSegmenter
 tensorflow
+# 强制锁定旧版 Numpy 以兼容 inaSpeechSegmenter
+numpy<2.0.0
+# 进度条显示
 tqdm
-# 必须锁定 numpy<2，否则会与 tensorflow 冲突
-numpy<2
-# 必须锁定 pyannote-core<6，否则会强制安装新版 numpy
-pyannote-core<6
+
+# === 识曲与改名 ===
+shazamio
+aiohttp
+
+# === 辅助工具 ===
+# 某些版本的 ina 需要限定 pyannote-core 版本
+pyannote.core<6.0.0
