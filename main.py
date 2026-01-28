@@ -80,16 +80,17 @@ def main():
     print(f"\n>>> 识别到 {len(merged_segments)} 首歌曲，准备导出...")
     if not os.path.exists(output_dir): os.makedirs(output_dir)
 
-    # === 新增：准备 Log 文件 ===
+    # === 准备 Log 文件 ===
     log_file_path = os.path.join(output_dir, "segments_log.txt")
     
     with open(log_file_path, "w", encoding="utf-8") as f_log:
         # 写入头部信息
         f_log.write(f"Source Video: {abs_video_path}\n")
         f_log.write(f"Total Songs: {len(merged_segments)}\n")
-        f_log.write("-------------------------------------------------------------\n")
-        f_log.write(f"{'Filename':<15} | {'Start Time':<15} | {'End Time':<15}\n")
-        f_log.write("-------------------------------------------------------------\n")
+        f_log.write("--------------------------------------------------------------------------------------\n")
+        # 调整表头，增加 Duration 和 Size
+        f_log.write(f"{'Filename':<15} | {'Start Time':<15} | {'End Time':<15} | {'Duration':<15} | {'Size (MB)':<10}\n")
+        f_log.write("--------------------------------------------------------------------------------------\n")
 
         for i, (s, e) in enumerate(tqdm(merged_segments, unit="file")):
             # 计算最终时间 (应用偏移量)
@@ -101,22 +102,36 @@ def main():
             filename = f"Song_{i+1:02d}.mp4"
             out_name = os.path.join(output_dir, filename)
 
-            # === 写入当前切片信息 ===
-            time_start_str = format_timestamp(new_s)
-            time_end_str = format_timestamp(new_e)
-            f_log.write(f"{filename:<15} | {time_start_str:<15} | {time_end_str:<15}\n")
-            # 实时刷新缓冲区，防止程序崩溃没保存
-            f_log.flush() 
-
-            # 执行切片
+            # === 1. 先执行切片 (必须先生成文件才能获取大小) ===
             subprocess.run([
                 'ffmpeg', '-y', '-ss', f"{new_s:.2f}", '-to', f"{new_e:.2f}",
                 '-i', input_video, '-c', 'copy', '-avoid_negative_ts', '1',
                 '-loglevel', 'error', out_name
             ])
 
+            # === 2. 获取文件信息 ===
+            # 计算时长
+            duration_sec = new_e - new_s
+            
+            # 获取文件大小 (单位: MB)
+            file_size_mb = 0.0
+            if os.path.exists(out_name):
+                file_size_mb = os.path.getsize(out_name) / (1024 * 1024)
+
+            # === 3. 格式化字符串 ===
+            time_start_str = format_timestamp(new_s)
+            time_end_str = format_timestamp(new_e)
+            time_dur_str = format_timestamp(duration_sec)
+
+            # === 4. 写入日志 ===
+            # 使用 <15 对齐列，MB 保留两位小数
+            f_log.write(f"{filename:<15} | {time_start_str:<15} | {time_end_str:<15} | {time_dur_str:<15} | {file_size_mb:.2f} MB\n")
+            
+            # 实时刷新缓冲区
+            f_log.flush() 
+
     print(f"\n✅ 全部完成！输出目录: {output_dir}")
-    print(f"📄 切片时间表已保存至: {log_file_path}")
+    print(f"📄 详细日志(含时长/大小)已保存至: {log_file_path}")
 
 if __name__ == "__main__":
     main()
